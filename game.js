@@ -5,10 +5,19 @@ class NotImplemented extends Error {
     }
 }
 
+class GameRulesViolation extends Error {
+    constructor(message = "", ...args) {
+        super(message, ...args);
+        this.message = message;
+    }
+}
+
+
 class Player {
-    constructor(playerId, isHuman) {
+    constructor(playerId, isHuman, isMaximizing) {
         this.playerId = playerId;
         this.isHuman = isHuman;
+        this.isMaximizing = isMaximizing;
     }
 
     equals(other) {
@@ -17,6 +26,18 @@ class Player {
             return true;
         }
         return false;
+    }
+
+    toString() {
+        const maxStr = "max";
+        const humanStr = "human";
+        if (! this.isMaximizing) {
+            maxStr = "min";
+        }
+        if (! this.isHuman) {
+            humanStr = "CPU";
+        }
+        return `P(${this.playerId}, ${maxStr}, ${humanStr})`;
     }
 }
 
@@ -38,6 +59,10 @@ class Position {
         }
         return false;
     }
+
+    toString() {
+        return `(${this.x}, ${this.y})`;
+    }
 }
 
 class Matroska {
@@ -51,24 +76,88 @@ class Matroska {
         this.size = size;
         this.position = position;
     }
+
+    toString() {
+        return `M(${this.owner}, ${this.position}, ${this.size})`;
+    }
 }
 
 class Board {
 
-    constructor(figures) {
-        this.figures = figures;
-        this.outsideFigures = [];
+    constructor() {
+        this.figures = [];
+        this.maxPlayerOutsideFigures = [[], [], []];
+        this.minPlayerOutsideFigures = [[], [], []];
 
         this.threeDBoard = [[[null, null, null], [null, null, null], [null, null, null]],
         [[null, null, null], [null, null, null], [null, null, null]],
         [[null, null, null], [null, null, null], [null, null, null]]];
+    }
 
-        for (let matroska of figures) {
-            // place figures on board
-            if (matroska.position !== null) {
-                this.threeDBoard[matroska.position.y][matroska.position.x][matroska.size] = matroska;
+    /**@returns true if position is not null and is inside the board */
+    contains(position) {
+        if (position === null) return false;
+
+        if (position.x >= 0 && position.x <= 3 
+            && position.y >= 0 && position.y <= 3) {
+            return true;
+        }
+        return false;
+    }
+
+    /**@param matroska - the Matroska to be added 
+     * @throws GameRulesViolation - if `matroska` can not be added*/
+    addMatroska(matroska) {
+        const position = matroska.position;
+        const player = matroska.player;
+        if (position === null) {
+            if (player.isMaximizing) {
+                this.maxPlayerOutsideFigures[matroska.size].push(matroska);
+                if (this.maxPlayerOutsideFigures[matroska.size].length > 2) {
+                    throw new GameRulesViolation("more than 2 matroskas of same size");
+                }
+                return;
             } else {
-                this.outsideFigures.push(matroska);
+                this.minPlayerOutsideFigures[matroska.size].push(matroska);
+                if (this.minPlayerOutsideFigures[matroska.size].length > 2) {
+                    throw new GameRulesViolation("more than 2 matroskas of same size");
+                }
+                return;
+            }
+        } else {
+            if (this.contains(position)) {
+                const top = this.topAt(position);
+                if (top === null || top.size < matroska.size) {
+                    this.threeDBoard[position.y][position.x][matroska.size] = matroska;
+                } else {
+                    throw new GameRulesViolation(`Position ${position} occupied with ${top}`);
+                }
+            } else {
+                throw new GameRulesViolation(`Position ${position} out of board's range`)
+            }
+        }
+    }
+
+    /**@param matroska - remove Matroska
+     * @throws GameRulesViolation - if `matroska` can not be removed
+    */
+    removeMatroska(matroska) {
+        const position = matroska.position;
+        const player = matroska.player;
+
+        if (position === null) {
+            if (player.isMaximizing) {
+                this.maxPlayerOutsideFigures[matroska.size].pop();
+                return;
+            } else {
+                this.minPlayerOutsideFigures[matroska.size].pop();
+                return;
+            }
+        } else {
+            if (this.contains(position)) {
+                throw new NotImplemented("TODO");
+            } else {
+                throw new GameRulesViolation(`Position ${position} out of board's range`)
             }
         }
     }
