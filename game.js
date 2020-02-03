@@ -681,6 +681,7 @@ class InterfaceError extends Error {
 class TheGame {
 
     constructor() {
+        this.historyOfGameStates = [];
         this.maxPlayer = new Player(0, true, true);
         this.minPlayer = new Player(1, false, false);
         this.gameState = new GameState(
@@ -692,6 +693,62 @@ class TheGame {
 
         this.lastSelectedMatroska = null;
         this.lastSelectedDestination = null;
+    }
+
+    translate(matroska, destination) {
+        let teamString;
+        if (matroska.owner.isMaximizing) {
+            teamString = "max";
+        } else {
+            teamString = "min";
+        }
+
+        if (matroska.position !== null) {
+            const figures = document.querySelectorAll(
+                `[data-x='${matroska.position.x}']\
+[data-y='${matroska.position.y}']\
+[data-outside='false']\
+[data-size='${matroska.size}']\
+[data-team='${teamString}'].figure`);
+            if (figures.length != 1) {
+                throw new InterfaceError(
+                    `Not exactly one matroska match for position ${matroska.position}`);
+            } else {
+                const domFigure = figures[0];
+                domFigure.dataset.outside = "false";
+                domFigure.dataset.x = "" + destination.x;
+                domFigure.dataset.y = "" + destination.y;
+                domFigure.style.top = "" + (destination.y * 100) + "px";
+                domFigure.style.left = "" + (destination.x * 100) + "px";
+            }
+        } else {
+            const figures = document.querySelectorAll(
+                `[data-outside='true']\
+[data-size='${matroska.size}']\
+[data-team='${teamString}'].figure`);
+            if (figures.length < 1 || figures.length > 2) {
+                throw new InterfaceError(
+                    `Weird number of figures outside for this selection (${figures.length})`);
+            }
+            const domFigure = figures[0];
+            domFigure.dataset.outside = "false";
+            domFigure.dataset.x = "" + destination.x;
+            domFigure.dataset.y = "" + destination.y;
+            domFigure.style.top = "" + (destination.y * 100) + "px";
+            domFigure.style.left = "" + (destination.x * 100) + "px";
+        }
+    }
+
+    doAction(action) {
+        try {
+            const newGameState = action.applyAction(this.gameState);
+            this.translate(action.sourceMatroska, action.destination);
+            this.historyOfGameStates.push(this.gameState);
+            this.gameState = newGameState;
+        } catch (error) {
+            console.error(error);
+            throw new InterfaceError("Uncaught GameRulesViolation error");
+        }
     }
 
     selectMatroska(matroska) {
@@ -722,6 +779,18 @@ class TheGame {
 
     selectDestination(destination) {
         this.lastSelectedDestination = destination;
+
+        if (this.lastSelectedMatroska !== null) {
+            const action = new MoveAction(
+                this.gameState.getPlayerOnTurn,
+                this.lastSelectedMatroska,
+                this.lastSelectedDestination
+            );
+            this.doAction(action);
+        } else {
+            throw new InterfaceError("No lastSelected matroska found");
+        }
+
         for (const domTile of document.getElementsByClassName("tile")) {
             domTile.classList.remove("selectable");
             domTile.removeEventListener("click", onTileClick);
