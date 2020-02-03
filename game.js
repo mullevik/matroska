@@ -388,6 +388,52 @@ class MoveAction extends AbstractAction {
     }
 }
 
+class Heuristics {
+
+    static calculate(board) {
+        Heuristics.simpleHeuristic(board);
+    }
+
+    /**Adds some utility for each top-matroska depending on the
+     * strategic value of a position*/
+    static simpleHeuristic(board) {
+        const middle = new Position(1, 1);
+        const top = new Position(1, 0);
+        const bottom = new Position(1, 2);
+        const left = new Position(0, 1);
+        const right = new Position(2, 1);
+        const topLeft = new Position(0, 0);
+        const topRight = new Position(2, 0);
+        const bottomLeft = new Position(0, 2);
+        const bottomRight = new Position(2, 2);
+
+        const good = {value: 2,
+            positions: [left, right, top, bottom]};
+        const great = {value: 3,
+            positions: [topLeft, topRight, bottomLeft, bottomRight]};
+        const awesome = {value: 4,
+            positions: [middle]};
+
+        const all = [good, great, awesome];
+
+        let utility = 0;
+
+        for (const object of all) {
+            for (const position of object.positions) {
+                const top = board.topAt(position);
+                if (top !== null) {
+                    if (top.owner.isMaximizing) {
+                        utility += object.value;
+                    } else {
+                        utility -= object.value;
+                    }
+                }
+            }
+        }
+        return utility;
+    }
+}
+
 class GameState {
 
     constructor(board, maxPlayer, minPlayer, playerOnTurn) {
@@ -395,18 +441,40 @@ class GameState {
         this.maxPlayer = maxPlayer;
         this.minPlayer = minPlayer;
         this.playerOnTurn = playerOnTurn;
+        this.dynamicWinner = false;
+        this.winner = null;
     }
 
-    getPossibleActions(player) {
+    getPossibleActions() {
         throw new NotImplemented();
     }
 
+    /**Dynamic check for winning scenarios at board
+     * @returns true if there is some winner*/
     isTerminal() {
-        throw new NotImplemented();
+        if (! this.dynamicWinner) {
+            this.winner = this.board.getWinner(this.maxPlayer, this.minPlayer);
+        }
+
+        if (this.winner !== null) {
+            return true;
+        }
+        return false;
     }
 
+    /**@returns a positive or negative number coresponding to this node's utility */
     utility() {
-        throw new NotImplemented();
+        if (this.isTerminal()) {
+            if (this.winner == this.maxPlayer) {
+                // maxPalyer wins
+                return Infinity;
+            } else {
+                // minPlayer wins
+                return - Infinity;
+            }
+        } else {
+            return Heuristics.calculate(this.board);
+        }
     }
 
     getPlayerOnTurn() {
@@ -545,10 +613,26 @@ function testBoard() {
     b4.addMatroska(new Matroska(p1, 0, right));
     b4.addMatroska(new Matroska(p1, 0, new Position(2, 0)));
     assertEquals(b4.getWinner(p1, p2), p1);
-    
 }
 testBoard();
 
+function testHeuristics() {
+    const p1 = new Player(0, true, true);
+    const p2 = new Player(1, false, false);
+
+    const b = new Board();
+    b.addMatroska(new Matroska(p1, 1, null));
+    b.addMatroska(new Matroska(p1, 1, null));
+    assertEquals(Heuristics.simpleHeuristic(b), 0);
+
+    b.addMatroska(new Matroska(p1, 0, new Position(0, 0)));
+    assertEquals(Heuristics.simpleHeuristic(b), 3);
+    b.addMatroska(new Matroska(p2, 0, new Position(1, 1)));
+    assertEquals(Heuristics.simpleHeuristic(b), -1);
+    b.addMatroska(new Matroska(p1, 2, new Position(1, 1)));
+    assertEquals(Heuristics.simpleHeuristic(b), 7)
+}
+testHeuristics();
 
 
 
