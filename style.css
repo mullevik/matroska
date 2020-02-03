@@ -1,0 +1,61 @@
+div#game {
+    position: relative;
+    width: 900px;
+    height: 900px;
+    padding-top: 300px;
+}
+
+div#board {
+    width: 300px;
+    height: 300px;
+    position: relative;
+    overflow: visible;
+}
+
+.tile {
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    background-color: lightgray;
+    z-index: -1;
+}
+.tile:nth-of-type(2n) {
+    background-color: white;
+}
+
+.tile.selectable {
+    background-color: rgba(255, 255, 0, 0.5);
+    z-index: 10;
+}
+
+
+.figure {
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+
+.team-max {
+    background-color: orange;
+    top: -200px;
+}
+
+.team-min {
+    background-color: blue;
+    top: 400px;
+}
+
+.size-0 {
+    border-radius: 50%;
+    z-index: 0;
+}
+.size-1 {
+    border-radius: 25%;
+    z-index: 1;
+}
+.size-2 {
+    border-radius: 0%;
+    z-index: 2;
+}

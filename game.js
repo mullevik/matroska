@@ -112,6 +112,25 @@ class Board {
         [[null, null, null], [null, null, null], [null, null, null]]];
     }
 
+    /**@returns {Board} new instance of empty board with correct number of figures for
+     * both players */
+    static createStartingBoard(maxPlayer, minPlayer) {
+        const b = new Board();
+        b.addMatroska(new Matroska(maxPlayer, 0, null));
+        b.addMatroska(new Matroska(maxPlayer, 0, null));
+        b.addMatroska(new Matroska(maxPlayer, 1, null));
+        b.addMatroska(new Matroska(maxPlayer, 1, null));
+        b.addMatroska(new Matroska(maxPlayer, 2, null));
+        b.addMatroska(new Matroska(maxPlayer, 2, null));
+        b.addMatroska(new Matroska(minPlayer, 0, null));
+        b.addMatroska(new Matroska(minPlayer, 0, null));
+        b.addMatroska(new Matroska(minPlayer, 1, null));
+        b.addMatroska(new Matroska(minPlayer, 1, null));
+        b.addMatroska(new Matroska(minPlayer, 2, null));
+        b.addMatroska(new Matroska(minPlayer, 2, null));
+        return b;
+    }
+
     /**@returns true if position is not null and is inside the board */
     contains(position) {
         if (position === null) {
@@ -562,6 +581,27 @@ class GameState {
             return this.maxPlayer;
         }
     }
+
+    print() {
+        let out = "";
+        for (let rowIndex = 0; rowIndex < 3; rowIndex ++) {
+            for (let colIndex = 0; colIndex < 3; colIndex ++) {
+                const top = this.board.topAt(new Position(colIndex, rowIndex));
+                if (top !== null) {
+                    if (top.owner.equals(this.maxPlayer)) {
+                        out += "X" + top.size; 
+                    } else {
+                        out += "O" + top.size;
+                    }
+                } else {
+                    out += "--";
+                }
+                out += " ";
+            }
+            out += "\n";
+        }
+        return out;
+    }
 }
 
 class MiniMaxOutcome {
@@ -631,6 +671,122 @@ function alphaBeta(gameState, depth, alpha, beta, outcome) {
     }
 }
 
+class InterfaceError extends Error {
+    constructor(message = "", ...args) {
+        super(message, ...args);
+        this.message = message;
+    }
+}
+
+class TheGame {
+
+    constructor() {
+        this.maxPlayer = new Player(0, true, true);
+        this.minPlayer = new Player(1, false, false);
+        this.gameState = new GameState(
+            Board.createStartingBoard(this.maxPlayer, this.minPlayer),
+            this.maxPlayer,
+            this.minPlayer,
+            this.maxPlayer
+        );
+
+        this.lastSelectedMatroska = null;
+        this.lastSelectedDestination = null;
+    }
+
+    selectMatroska(matroska) {
+        if (! matroska.owner.equals(this.gameState.playerOnTurn)) {
+            console.warn("This player is not on turn.");
+            return;
+        }
+
+        this.lastSelectedMatroska = matroska;
+
+        const destinations = this.gameState.board.getPossiblePlacementDestinations(matroska);
+
+        for (const position of destinations) {
+            const tiles = document.querySelectorAll(
+                `[data-x='${position.x}'][data-y='${position.y}'].tile`);
+
+            if (tiles.length != 1) {
+                throw new InterfaceError(`Not exactly one tile at position ${position}`);
+            }
+            const domTile = tiles[0];
+
+            domTile.classList.add("selectable");
+            domTile.removeEventListener("click", onTileClick);
+            domTile.addEventListener("click", onTileClick, false);
+        }
+
+    }
+
+    selectDestination(destination) {
+        this.lastSelectedDestination = destination;
+        for (const domTile of document.getElementsByClassName("tile")) {
+            domTile.classList.remove("selectable");
+            domTile.removeEventListener("click", onTileClick);
+        }
+    }
+}
+
+
+//
+//  VISUALS
+//
+
+const THE_GAME = new TheGame();
+
+function onMatroskaClick(e) {
+    e = e || window.event;
+    const domTarget = e.target || e.srcElement;
+    
+    const isOutside = (domTarget.dataset.outside == "true");
+    const x = parseInt(domTarget.dataset.x);
+    const y = parseInt(domTarget.dataset.y);
+
+    let position = null;
+    if (! isOutside) {
+        position = new Position(x, y);
+    }
+
+    let player = null;
+    const teamString = domTarget.dataset.team;
+    if (teamString == "max") {
+        player = THE_GAME.maxPlayer;
+    } else {
+        player = THE_GAME.minPlayer;
+    }
+
+    const size = parseInt(domTarget.dataset.size);
+
+    const matroska = new Matroska(player, size, position);
+    console.log(matroska);
+    THE_GAME.selectMatroska(matroska);
+}
+
+function onTileClick(e) {
+    e = e || window.event;
+    const domTarget = e.target || e.srcElement;
+    const x = parseInt(domTarget.dataset.x);
+    const y = parseInt(domTarget.dataset.y);
+
+    const position = new Position(x, y);
+    console.log(position);
+    THE_GAME.selectDestination(position);
+}
+
+const figures = document.getElementsByClassName("figure");
+
+for (const domMatroska of figures) {
+    domMatroska.addEventListener("click", onMatroskaClick, false);
+}
+
+
+
+
+//
+//  ASSERTIONS
+//
 
 class AssertionError extends Error {
     constructor(message = "", ...args) {
@@ -645,6 +801,12 @@ function assertTrue(x) {
 
 function assertEquals(actual, expected) {
     if (actual != expected) {
+        throw new AssertionError(`Got ${actual}, but expected ${expected}`)
+    };
+}
+
+function assertEqualsWithEquals(actual, expected) {
+    if (! actual.equals(expected)) {
         throw new AssertionError(`Got ${actual}, but expected ${expected}`)
     };
 }
@@ -755,7 +917,7 @@ function testBoard() {
     b4.addMatroska(new Matroska(p1, 0, new Position(2, 0)));
     assertEquals(b4.getWinner(p1, p2), p1);
 }
-testBoard();
+// testBoard();
 
 function testHeuristics() {
     const p1 = new Player(0, true, true);
@@ -773,7 +935,7 @@ function testHeuristics() {
     b.addMatroska(new Matroska(p1, 2, new Position(1, 1)));
     assertEquals(Heuristics.simpleHeuristic(b), 7)
 }
-testHeuristics();
+// testHeuristics();
 
 function testGameState() {
     const p1 = new Player(0, true, true);
@@ -798,7 +960,7 @@ function testGameState() {
     assertEquals(s2.utility(), Infinity);
     assertTrue(s2.isTerminal());
 }
-testGameState();
+// testGameState();
 
 
 function testMiniMax() {
@@ -823,8 +985,8 @@ function testMiniMax() {
 
     const s1 = new GameState(b, p1, p2, p1);
 
-    alphaBeta(s1, 2, -Infinity, Infinity, o1);
-    console.log(o1);
+    // alphaBeta(s1, 2, -Infinity, Infinity, o1);
+    // console.log(o1);
     
     const s2 = new MoveAction(
         p1, new Matroska(p1, 0, null), new Position(1, 1)).applyAction(s1);
@@ -837,17 +999,13 @@ function testMiniMax() {
     
     const s5 = new MoveAction(
         p2, new Matroska(p2, 0, null), new Position(2, 1)).applyAction(s4);
-    console.log(s5);
     console.log(s5.board.toString());
-
+    
     const o2 = new MiniMaxOutcome();
-    alphaBeta(s5, 3, -Infinity, Infinity, o2);
+    alphaBeta(s5, 1, -Infinity, Infinity, o2);
     console.log(o2);
     a2 = o2.bestPossibleAction;
-    console.log(a2);
+    assertEqualsWithEquals(a2.destination, new Position(2, 1));
+    console.log(s5.print())
 }
 testMiniMax();
-
-x = [1, [2, 3], [], 5];
-z = x.flat(Infinity);
-
