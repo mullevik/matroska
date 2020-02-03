@@ -311,13 +311,69 @@ class Board {
         return null;
     }
 
+    /**@param player - the owner (Player) of figures to move
+     * @returns array of Matroskas which can be moved by `player`*/
+    getMovementAvailableFigures(player) {
+        let availableFigures = [];
+
+        if (player.isMaximizing) {
+            availableFigures = this.maxPlayerOutsideFigures.flat(Infinity);
+        } else {
+            availableFigures = this.minPlayerOutsideFigures.flat(Infinity);
+        }
+        
+        for (let rowIndex = 0; rowIndex < 3; rowIndex ++) {
+            for (let colIndex = 0; colIndex < 3; colIndex ++) {
+                const position = new Position(colIndex, rowIndex);
+                const top = this.topAt(position);
+                if (top !== null) {
+                    if (top.owner.equals(player)) {
+                        availableFigures.push(top);
+                    }
+                }
+            }
+        }
+
+        return availableFigures;
+    }
+
+    /**@param matroska - the source Matroska which wants to be moved
+     * @returns array of Positions to which the `matroska` can be placed
+     */
+    getPossiblePlacementDestinations(matroska) {
+        const possiblePositions = [];
+        const sourcePosition = matroska.position;
+
+        for (let rowIndex = 0; rowIndex < 3; rowIndex ++) {
+            for (let colIndex = 0; colIndex < 3; colIndex ++) {
+                const position = new Position(colIndex, rowIndex);
+
+                if (! position.equals(sourcePosition)) {
+                    const top = this.topAt(position);
+
+                    if (top !== null) {
+                        if (top.size < matroska.size) {
+                            possiblePositions.push(position);
+                        }
+                    } else {
+                        possiblePositions.push(position);
+                    }
+                }
+            }
+        }
+
+        return possiblePositions;
+    }
+
     /**Deep copies the board
      * @returns new Board with the same contents of this board*/
     copy() {
         const newBoard = new Board();
-        newBoard.maxPlayerOutsideFigures = Array.from(this.maxPlayerOutsideFigures);
-        newBoard.minPlayerOutsideFigures = Array.from(this.minPlayerOutsideFigures);
-
+        for (let i = 0; i < 3; i ++) {
+            newBoard.maxPlayerOutsideFigures[i] = Array.from(this.maxPlayerOutsideFigures[i]); 
+            newBoard.minPlayerOutsideFigures[i] = Array.from(this.minPlayerOutsideFigures[i]); 
+        }
+        
         for (let rowIndex = 0; rowIndex < 3; rowIndex ++) {
             for (let colIndex = 0; colIndex < 3; colIndex ++) {
                 for (let sizeIndex = 0; sizeIndex < 3; sizeIndex ++) {
@@ -370,17 +426,22 @@ class AbstractAction {
 /**Move action removes sourceMatroska and adds targetMatroska to the board */
 class MoveAction extends AbstractAction {
 
-    constructor(player, sourceMatroska, targetMatroska) {
+    /**@param {Player} player - the Player who executes this action 
+     * @param {Matroska} sourceMatroska - the Matroska which is being moved
+     * @param {Position} destination - the destination Position to which the `matroska` is moved
+     */
+    constructor(player, sourceMatroska, destination) {
         super(player);
         this.sourceMatroska = sourceMatroska;
-        this.targetMatroska = targetMatroska;
+        this.destination = destination;
     }
 
     applyAction(gameState) {
         const oldBoard = gameState.board;
         const newBoard = oldBoard.copy();
         newBoard.removeMatroska(this.sourceMatroska);
-        newBoard.addMatroska(this.targetMatroska);
+        newBoard.addMatroska(new Matroska(
+            this.sourceMatroska.owner,this.sourceMatroska.size, this.destination));
 
         const playerForNextTurn = gameState.getPlayerForNextTurn();
         return new GameState(
@@ -391,7 +452,7 @@ class MoveAction extends AbstractAction {
 class Heuristics {
 
     static calculate(board) {
-        Heuristics.simpleHeuristic(board);
+        return Heuristics.simpleHeuristic(board);
     }
 
     /**Adds some utility for each top-matroska depending on the
@@ -445,8 +506,21 @@ class GameState {
         this.winner = null;
     }
 
+    /**@returns {array of AbstractAction} array of all possible actions from this state */
     getPossibleActions() {
-        throw new NotImplemented();
+        const actions = [];
+
+        const availableFigures = this.board.getMovementAvailableFigures(this.playerOnTurn);
+        
+        for (const matroska of availableFigures) {
+            const destinations = this.board.getPossiblePlacementDestinations(matroska);
+
+            for (const position of destinations) {
+                actions.push(new MoveAction(this.playerOnTurn, matroska, position));
+            }
+        }
+
+        return actions;
     }
 
     /**Dynamic check for winning scenarios at board
@@ -634,14 +708,31 @@ function testHeuristics() {
 }
 testHeuristics();
 
+function testGameState() {
+    const p1 = new Player(0, true, true);
+    const p2 = new Player(1, false, false);
 
+    const b1 = new Board();
+    b1.addMatroska(new Matroska(p1, 0, null));
+    b1.addMatroska(new Matroska(p1, 2, null));
+    const s1 = new GameState(b1, p1, p2, p1);
+    assertEquals(s1.getPossibleActions().length, 18);
+    b1.addMatroska(new Matroska(p1, 1, new Position(0, 0)));
+    b1.addMatroska(new Matroska(p1, 2, new Position(1, 1)));
+    assertEquals(s1.getPossibleActions().length, 30);
+    assertEquals(s1.utility(), 7)
+    assertTrue(! s1.isTerminal())
 
-x = [1, [2, 2], 3];
+    a1 = new MoveAction(p1, new Matroska(p1, 0, null), new Position(1, 1));
+    assertThrows(() => {a1.applyAction(s1)}, GameRulesViolation);
 
-y = Array.from(x);
+    a2 = new MoveAction(p1, new Matroska(p1, 0, null), new Position(2, 2));
+    s2 = a2.applyAction(s1);
+    assertEquals(s2.utility(), Infinity);
+    assertTrue(s2.isTerminal());
+}
+testGameState();
 
-x[2] = 5;
-x[1][1] = 10;
+x = [1, [2, 3], [], 5];
+z = x.flat(Infinity);
 
-x
-y
