@@ -620,12 +620,16 @@ class MiniMaxOutcome {
 
 }
 
-function alphaBeta(gameState, depth, alpha, beta, outcome) {
+function alphaBeta(gameState, depth, alpha, beta, outcome, selectAction) {
     outcome.noAllGameNodesSearched += 1;
 
     if (depth == 0) {
         // maximum depth cutoff
-        outcome.noDepthCutoffStates += 1;
+        if (gameState.isTerminal()) {
+            outcome.noTerminalStates += 1;
+        } else {
+            outcome.noDepthCutoffStates += 1;
+        }
         return gameState.utility();
     } else if (gameState.isTerminal()) {
         outcome.noTerminalStates += 1;
@@ -637,10 +641,12 @@ function alphaBeta(gameState, depth, alpha, beta, outcome) {
         for (const action of gameState.getPossibleActions()) {
             const nextGameState = action.applyAction(gameState);
 
-            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome);
+            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome, false);
             if (valueOfChild > value) {
                 value = valueOfChild;
-                outcome.setBestAction(action);
+                if (selectAction) {
+                    outcome.setBestAction(action);
+                }
             }
             alpha = Math.max(alpha, value);
             if (alpha >= beta) {
@@ -655,10 +661,12 @@ function alphaBeta(gameState, depth, alpha, beta, outcome) {
         for (const action of gameState.getPossibleActions()) {
             const nextGameState = action.applyAction(gameState);
 
-            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome);
-            if (valueOfChild > value) {
+            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome, false);
+            if (valueOfChild < value) {
                 value = valueOfChild;
-                outcome.setBestAction(action);
+                if (selectAction) {
+                    outcome.setBestAction(action);
+                }
             }
             beta = Math.min(beta, value);
             if (alpha >= beta) {
@@ -682,8 +690,8 @@ class TheGame {
 
     constructor() {
         this.historyOfGameStates = [];
-        this.maxPlayer = new Player(0, true, true);
-        this.minPlayer = new Player(1, false, false);
+        this.maxPlayer = new Player(0, false, true);
+        this.minPlayer = new Player(1, true, false);
         this.gameState = new GameState(
             Board.createStartingBoard(this.maxPlayer, this.minPlayer),
             this.maxPlayer,
@@ -693,6 +701,9 @@ class TheGame {
 
         this.lastSelectedMatroska = null;
         this.lastSelectedDestination = null;
+        this.cpuDepth = 2;
+
+        this.doPostTurn();
     }
 
     translate(matroska, destination) {
@@ -745,15 +756,36 @@ class TheGame {
             this.translate(action.sourceMatroska, action.destination);
             this.historyOfGameStates.push(this.gameState);
             this.gameState = newGameState;
+            this.doPostTurn();
         } catch (error) {
             console.error(error);
             throw new InterfaceError("Uncaught GameRulesViolation error");
         }
     }
 
+    doPostTurn() {
+        if (! this.gameState.playerOnTurn.isHuman) {
+            // CPU's turn to play
+            this.cpuTurn();
+        }
+    }
+
+    cpuTurn() {
+        const outcome = new MiniMaxOutcome();
+
+        const searchDepth = this.cpuDepth + this.historyOfGameStates.length;
+        const value = alphaBeta(this.gameState, this.cpuDepth, -Infinity, Infinity, outcome, true);
+        console.log(`Game value for this action: ${value}`);
+        console.log(outcome);
+
+        const bestAction = outcome.bestPossibleAction;
+        this.doAction(bestAction);
+    }
+
     selectMatroska(matroska) {
-        if (! matroska.owner.equals(this.gameState.playerOnTurn)) {
-            console.warn("This player is not on turn.");
+        if ((! matroska.owner.equals(this.gameState.playerOnTurn)) 
+        || (! matroska.owner.isHuman)) {
+            console.warn("This matroska can not be moved.");
             return;
         }
 
@@ -786,6 +818,8 @@ class TheGame {
                 this.lastSelectedMatroska,
                 this.lastSelectedDestination
             );
+            this.lastSelectedMatroska = null;
+            this.lastSelectedDestination = null;
             this.doAction(action);
         } else {
             throw new InterfaceError("No lastSelected matroska found");
@@ -1053,9 +1087,6 @@ function testMiniMax() {
     const o1 = new MiniMaxOutcome();
 
     const s1 = new GameState(b, p1, p2, p1);
-
-    // alphaBeta(s1, 2, -Infinity, Infinity, o1);
-    // console.log(o1);
     
     const s2 = new MoveAction(
         p1, new Matroska(p1, 0, null), new Position(1, 1)).applyAction(s1);
@@ -1071,7 +1102,7 @@ function testMiniMax() {
     console.log(s5.board.toString());
     
     const o2 = new MiniMaxOutcome();
-    alphaBeta(s5, 1, -Infinity, Infinity, o2);
+    alphaBeta(s5, 1, -Infinity, Infinity, o2, true);
     console.log(o2);
     a2 = o2.bestPossibleAction;
     assertEqualsWithEquals(a2.destination, new Position(2, 1));
