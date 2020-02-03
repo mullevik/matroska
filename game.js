@@ -564,6 +564,73 @@ class GameState {
     }
 }
 
+class MiniMaxOutcome {
+    constructor() {
+        this.bestPossibleAction = null;
+        this.noAlphaBetaPrunes = 0;
+        this.noTerminalStates = 0;
+        this.noDepthCutoffStates = 0;
+        this.noAllGameNodesSearched = 0;
+    }
+
+    setBestAction(action) {
+        this.bestPossibleAction = action;
+    }
+
+
+}
+
+function alphaBeta(gameState, depth, alpha, beta, outcome) {
+    outcome.noAllGameNodesSearched += 1;
+
+    if (depth == 0) {
+        // maximum depth cutoff
+        outcome.noDepthCutoffStates += 1;
+        return gameState.utility();
+    } else if (gameState.isTerminal()) {
+        outcome.noTerminalStates += 1;
+        return gameState.utility();
+    }
+
+    if (gameState.getPlayerOnTurn().isMaximizing) {
+        let value = - Infinity;
+        for (const action of gameState.getPossibleActions()) {
+            const nextGameState = action.applyAction(gameState);
+
+            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome);
+            if (valueOfChild > value) {
+                value = valueOfChild;
+                outcome.setBestAction(action);
+            }
+            alpha = Math.max(alpha, value);
+            if (alpha >= beta) {
+                // cutoff the rest of the branches
+                outcome.noAlphaBetaPrunes += 1;
+                break;
+            }
+        }
+        return value;
+    } else {
+        let value = Infinity;
+        for (const action of gameState.getPossibleActions()) {
+            const nextGameState = action.applyAction(gameState);
+
+            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome);
+            if (valueOfChild > value) {
+                value = valueOfChild;
+                outcome.setBestAction(action);
+            }
+            beta = Math.min(beta, value);
+            if (alpha >= beta) {
+                // cutoff the rest of the branches
+                outcome.noAlphaBetaPrunes += 1;
+                break;
+            }
+        }
+        return value;
+    }
+}
+
 
 class AssertionError extends Error {
     constructor(message = "", ...args) {
@@ -732,6 +799,54 @@ function testGameState() {
     assertTrue(s2.isTerminal());
 }
 testGameState();
+
+
+function testMiniMax() {
+    const p1 = new Player(0, true, true);
+    const p2 = new Player(1, false, false);
+
+    const b = new Board();
+    b.addMatroska(new Matroska(p1, 0, null));
+    b.addMatroska(new Matroska(p1, 0, null));
+    b.addMatroska(new Matroska(p1, 1, null));
+    b.addMatroska(new Matroska(p1, 1, null));
+    b.addMatroska(new Matroska(p1, 2, null));
+    b.addMatroska(new Matroska(p1, 2, null));
+    b.addMatroska(new Matroska(p2, 0, null));
+    b.addMatroska(new Matroska(p2, 0, null));
+    b.addMatroska(new Matroska(p2, 1, null));
+    b.addMatroska(new Matroska(p2, 1, null));
+    b.addMatroska(new Matroska(p2, 2, null));
+    b.addMatroska(new Matroska(p2, 2, null));
+
+    const o1 = new MiniMaxOutcome();
+
+    const s1 = new GameState(b, p1, p2, p1);
+
+    alphaBeta(s1, 2, -Infinity, Infinity, o1);
+    console.log(o1);
+    
+    const s2 = new MoveAction(
+        p1, new Matroska(p1, 0, null), new Position(1, 1)).applyAction(s1);
+    
+    const s3 = new MoveAction(
+        p2, new Matroska(p2, 0, null), new Position(0, 0)).applyAction(s2);
+    
+    const s4 = new MoveAction(
+        p1, new Matroska(p1, 0, null), new Position(0, 1)).applyAction(s3);
+    
+    const s5 = new MoveAction(
+        p2, new Matroska(p2, 0, null), new Position(2, 1)).applyAction(s4);
+    console.log(s5);
+    console.log(s5.board.toString());
+
+    const o2 = new MiniMaxOutcome();
+    alphaBeta(s5, 3, -Infinity, Infinity, o2);
+    console.log(o2);
+    a2 = o2.bestPossibleAction;
+    console.log(a2);
+}
+testMiniMax();
 
 x = [1, [2, 3], [], 5];
 z = x.flat(Infinity);
