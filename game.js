@@ -12,6 +12,13 @@ class GameRulesViolation extends Error {
     }
 }
 
+class AbstractMethod extends Error {
+    constructor(message = "", ...args) {
+        super(message, ...args);
+        this.message = message;
+    }
+}
+
 
 class Player {
     constructor(playerId, isHuman, isMaximizing) {
@@ -219,6 +226,91 @@ class Board {
         return null;
     }
 
+    /**@param maxPlayer - the maximizing player
+     * @param minPlayer - the minimizing player 
+     * @returns a Player (maxPlayer of minPlayer) who won the game 
+     * or null, if no such player exists */
+    getWinner(maxPlayer, minPlayer) {
+        // check rows
+        for (let rowIndex = 0; rowIndex < 3; rowIndex ++) {
+            let maxPlayerScore = 0;
+            let minPlayerScore = 0;
+            for (let colIndex = 0; colIndex < 3; colIndex ++) {
+                const top = this.topAt(new Position(colIndex, rowIndex));
+                if (top === null) {
+                    break;
+                } else if (maxPlayer.equals(top.owner)) {
+                    maxPlayerScore += 1;
+                } else {
+                    minPlayerScore += 1;
+                }
+            }
+            if (maxPlayerScore == 3) {
+                return maxPlayer;
+            } else if (minPlayerScore == 3) {
+                return minPlayer;
+            }
+        }
+        // check columns
+        for (let colIndex = 0; colIndex < 3; colIndex ++) {
+            let maxPlayerScore = 0;
+            let minPlayerScore = 0;
+            for (let rowIndex = 0; rowIndex < 3; rowIndex ++) {
+                const top = this.topAt(new Position(colIndex, rowIndex));
+                if (top === null) {
+                    break;
+                } else if (maxPlayer.equals(top.owner)) {
+                    maxPlayerScore += 1;
+                } else {
+                    minPlayerScore += 1;
+                }
+            }
+            if (maxPlayerScore == 3) {
+                return maxPlayer;
+            } else if (minPlayerScore == 3) {
+                return minPlayer;
+            }
+        }
+        // check decreasing diagonal
+        let maxPlayerScore = 0;
+        let minPlayerScore = 0;
+        for (let i = 0; i < 3; i ++) {
+            const top = this.topAt(new Position(i, i));
+            if (top === null) {
+                break;
+            } else if (maxPlayer.equals(top.owner)) {
+                maxPlayerScore += 1;
+            } else {
+                minPlayerScore += 1;
+            }
+        }
+        if (maxPlayerScore == 3) {
+            return maxPlayer;
+        } else if (minPlayerScore == 3) {
+            return minPlayer;
+        }
+        // check increasing diagonal
+        maxPlayerScore = 0;
+        minPlayerScore = 0;
+        for (let i = 0; i < 3; i ++) {
+            const top = this.topAt(new Position(i, 2 - i));
+            if (top === null) {
+                break;
+            } else if (maxPlayer.equals(top.owner)) {
+                maxPlayerScore += 1;
+            } else {
+                minPlayerScore += 1;
+            }
+        }
+        if (maxPlayerScore == 3) {
+            return maxPlayer;
+        } else if (minPlayerScore == 3) {
+            return minPlayer;
+        }
+
+        return null;
+    }
+
     /**Deep copies the board
      * @returns new Board with the same contents of this board*/
     copy() {
@@ -229,7 +321,8 @@ class Board {
         for (let rowIndex = 0; rowIndex < 3; rowIndex ++) {
             for (let colIndex = 0; colIndex < 3; colIndex ++) {
                 for (let sizeIndex = 0; sizeIndex < 3; sizeIndex ++) {
-                    newBoard.threeDBoard[rowIndex][colIndex][sizeIndex] = this.threeDBoard[rowIndex][colIndex][sizeIndex];
+                    newBoard.threeDBoard[rowIndex][colIndex][sizeIndex] = 
+                    this.threeDBoard[rowIndex][colIndex][sizeIndex];
                 }
             }
         }
@@ -259,10 +352,49 @@ class Board {
     }
 }
 
+class AbstractAction {
+
+    constructor(player) {
+        this.player;
+    }
+
+    /** Generates new GameState from current GameState.
+     * @param gameState - current Gamestate
+     * @returns new GameState with applied action
+     * @throws GameRuleViolation if the action is not applicable*/
+    applyAction(gameState) {
+        throw new AbstractMethod();
+    }
+}
+
+/**Move action removes sourceMatroska and adds targetMatroska to the board */
+class MoveAction extends AbstractAction {
+
+    constructor(player, sourceMatroska, targetMatroska) {
+        super(player);
+        this.sourceMatroska = sourceMatroska;
+        this.targetMatroska = targetMatroska;
+    }
+
+    applyAction(gameState) {
+        const oldBoard = gameState.board;
+        const newBoard = oldBoard.copy();
+        newBoard.removeMatroska(this.sourceMatroska);
+        newBoard.addMatroska(this.targetMatroska);
+
+        const playerForNextTurn = gameState.getPlayerForNextTurn();
+        return new GameState(
+            newBoard, gameState.maxPlayer, gameState.minPlayer, playerForNextTurn);
+    }
+}
+
 class GameState {
 
-    constructor(board) {
+    constructor(board, maxPlayer, minPlayer, playerOnTurn) {
         this.board = board;
+        this.maxPlayer = maxPlayer;
+        this.minPlayer = minPlayer;
+        this.playerOnTurn = playerOnTurn;
     }
 
     getPossibleActions(player) {
@@ -275,6 +407,18 @@ class GameState {
 
     utility() {
         throw new NotImplemented();
+    }
+
+    getPlayerOnTurn() {
+        return this.playerOnTurn;
+    }
+
+    getPlayerForNextTurn() {
+        if (this.playerOnTurn.equals(this.maxPlayer)) {
+            return this.minPlayer;
+        } else {
+            return this.maxPlayer;
+        }
     }
 }
 
@@ -291,7 +435,13 @@ function assertTrue(x) {
 }
 
 function assertEquals(actual, expected) {
-    if (actual != expected) throw new AssertionError(`Got ${actual}, but expected ${expected}`);
+    if (actual != expected) {
+        throw new AssertionError(`Got ${actual}, but expected ${expected}`)
+    };
+}
+
+function assertNull(x) {
+    if (x !== null) throw new AssertionError();
 }
 
 function assertThrows(executionFunction, exceptionClass) {
@@ -318,6 +468,9 @@ function testBoard() {
 
     const middle = new Position(1, 1);
     const top = new Position(1, 0);
+    const bottom = new Position(1, 2);
+    const left = new Position(0, 1);
+    const right = new Position(2, 1);
 
     const b = new Board();
     
@@ -359,6 +512,40 @@ function testBoard() {
     console.log(`${b1}`);
     console.log(`${b2}`);
 
+    // wins
+    const b3 = new Board();
+    b3.addMatroska(new Matroska(p1, 0, middle));
+    b3.addMatroska(new Matroska(p1, 0, top));
+    b3.addMatroska(new Matroska(p1, 1, bottom));
+    console.log(`${b3}`);
+    assertEquals(b3.getWinner(p1, p2), p1);
+
+    b3.addMatroska(new Matroska(p2, 1, middle));
+    b3.addMatroska(new Matroska(p2, 2, top));
+    console.log(`${b3}`);
+    assertNull(b3.getWinner(p1, p2));
+
+    b3.addMatroska(new Matroska(p1, 1, left));
+    b3.addMatroska(new Matroska(p1, 2, right));
+    console.log(`${b3}`);
+    assertNull(b3.getWinner(p1, p2));
+
+    b3.addMatroska(new Matroska(p1, 2, middle));
+    assertEquals(b3.getWinner(p1, p2), p1);
+    
+    const b4 = new Board();
+    b4.addMatroska(new Matroska(p2, 0, middle));
+    b4.addMatroska(new Matroska(p2, 0, new Position(0, 0)));
+    b4.addMatroska(new Matroska(p2, 1, new Position(2, 2)));
+    console.log(`${b4}`);
+    assertEquals(b4.getWinner(p1, p2), p2);
+
+    b4.addMatroska(new Matroska(p1, 2, new Position(2, 2)));
+    assertNull(b4.getWinner(p1, p2));
+    b4.addMatroska(new Matroska(p1, 0, right));
+    b4.addMatroska(new Matroska(p1, 0, new Position(2, 0)));
+    assertEquals(b4.getWinner(p1, p2), p1);
+    
 }
 testBoard();
 
