@@ -85,6 +85,7 @@ div#win-screen {
 
 .selection.selectable {
     display: block;
+    cursor: pointer;
 }
 
 .figure {
@@ -95,6 +96,7 @@ div#win-screen {
     left: 0px;
     transition: top 0.4s ease-out, left 0.4s ease-out;
     background-image: none;
+    cursor: pointer;
 }
 
 .figure img {
@@ -155,11 +157,13 @@ div#team-select img {
 div#team-max {
     grid-area: red;
     justify-self: end;
+    cursor: pointer;
 }
 
 div#team-min {
     grid-area: black;
     justify-self: start;
+    cursor: pointer;
 }
 
 button#restart {

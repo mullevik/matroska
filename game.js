@@ -731,7 +731,7 @@ class TheGame {
                 domFigure.dataset.y = "" + destination.y;
                 domFigure.style.top = "" + (destination.y * 100) + "px";
                 domFigure.style.left = "" + (destination.x * 100) + "px";
-                domFigure.style.zIndex = "" + ((destination.y * 10) + matroska.size);
+                domFigure.style.zIndex = "" + (((destination.y + 1) * 10) + matroska.size);
             }
         } else {
             const figures = document.querySelectorAll(
@@ -748,7 +748,7 @@ class TheGame {
             domFigure.dataset.y = "" + destination.y;
             domFigure.style.top = "" + (destination.y * 100) + "px";
             domFigure.style.left = "" + (destination.x * 100) + "px";
-            domFigure.style.zIndex = "" + ((destination.y * 10) + matroska.size);
+            domFigure.style.zIndex = "" + (((destination.y + 1) * 10) + matroska.size);
         }
     }
 
@@ -977,6 +977,29 @@ function onGameRestartClick(e) {
     }, 500);
 }
 
+function onPlayerTypeClick(e) {
+    e = e || window.event;
+    let domTarget = e.target || e.srcElement;
+
+    while (!(domTarget.dataset.cpu == "true" || domTarget.dataset.cpu == "false")) {
+        domTarget = domTarget.parentElement;
+    }
+
+    if (domTarget.dataset.cpu == "true") {
+        domTarget.dataset.cpu = "false";
+        const domLabel = document.getElementById(domTarget.id + "-label");
+        domLabel.innerText = "Human";
+        const domImage = document.getElementById(domTarget.id + "-image");
+        domImage.src = "./human.png";
+    } else {
+        domTarget.dataset.cpu = "true";
+        const domLabel = document.getElementById(domTarget.id + "-label");
+        domLabel.innerText = "CPU";
+        const domImage = document.getElementById(domTarget.id + "-image");
+        domImage.src = "./cpu.png";
+    }
+}
+
 const figures = document.getElementsByClassName("figure");
 
 for (const domMatroska of figures) {
@@ -986,6 +1009,10 @@ for (const domMatroska of figures) {
 const restartButton = document.getElementById("restart");
 restartButton.addEventListener("click", onGameRestartClick, false);
 
+const teamSelectMax = document.getElementById("team-max");
+const teamSelectMin = document.getElementById("team-min");
+teamSelectMax.addEventListener("click", onPlayerTypeClick, false);
+teamSelectMin.addEventListener("click", onPlayerTypeClick, false);
 
 
 //
