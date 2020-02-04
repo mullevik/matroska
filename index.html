@@ -9,37 +9,90 @@
 </head>
 <body>
 
+    <header>
+        <h1>Matroska Game</h1>
+        <p>a fun project about MiniMax search algorithm</p>
+    </header>
+
     <div id="game">
         <div id="board">
 
-            <div class="tile" data-x="0" data-y="0" style="left: 0px; top: 0px;"></div>
-            <div class="tile" data-x="1" data-y="0" style="left: 100px; top: 0px;"></div>
-            <div class="tile" data-x="2" data-y="0" style="left: 200px; top: 0px;"></div>
-            <div class="tile" data-x="0" data-y="1" style="left: 0px; top: 100px;"></div>
-            <div class="tile" data-x="1" data-y="1" style="left: 100px; top: 100px;"></div>
-            <div class="tile" data-x="2" data-y="1" style="left: 200px; top: 100px;"></div>
-            <div class="tile" data-x="0" data-y="2" style="left: 0px; top: 200px;"></div>
-            <div class="tile" data-x="1" data-y="2" style="left: 100px; top: 200px;"></div>
-            <div class="tile" data-x="2" data-y="2" style="left: 200px; top: 200px;"></div>
+            <div class="tile" style="left: 0px; top: 0px;"></div>
+            <div class="tile" style="left: 100px; top: 0px;"></div>
+            <div class="tile" style="left: 200px; top: 0px;"></div>
+            <div class="tile" style="left: 0px; top: 100px;"></div>
+            <div class="tile" style="left: 100px; top: 100px;"></div>
+            <div class="tile" style="left: 200px; top: 100px;"></div>
+            <div class="tile" style="left: 0px; top: 200px;"></div>
+            <div class="tile" style="left: 100px; top: 200px;"></div>
+            <div class="tile" style="left: 200px; top: 200px;"></div>
           
-            <div class="figure team-max size-0" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="0" style="left: 0px;"></div>
-            <div class="figure team-max size-0" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="0" style="left: 100px;"></div>
-            <div class="figure team-max size-1" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="1" style="left: 200px;"></div>
-            <div class="figure team-max size-1" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="1" style="left: 300px;"></div>
-            <div class="figure team-max size-2" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="2" style="left: 400px;"></div>
-            <div class="figure team-max size-2" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="2" style="left: 500px;"></div>
-            <div class="figure team-min size-0" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="0" style="left: 0px;"></div>
-            <div class="figure team-min size-0" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="0" style="left: 100px;"></div>
-            <div class="figure team-min size-1" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="1" style="left: 200px;"></div>
-            <div class="figure team-min size-1" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="1" style="left: 300px;"></div>
-            <div class="figure team-min size-2" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="2" style="left: 400px;"></div>
-            <div class="figure team-min size-2" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="2" style="left: 500px;"></div>
+            <div class="figure team-max size-0" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="0" style="left: 0px;">  <img src="./figure_red_small.png"></div>
+            <div class="figure team-max size-0" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="0" style="left: 0px;"> <img src="./figure_red_small.png"></div>
+            <div class="figure team-max size-1" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="1" style="left: 100px;"> <img src="./figure_red_medium.png"></div>
+            <div class="figure team-max size-1" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="1" style="left: 100px;"><img src="./figure_red_medium.png"></div>
+            <div class="figure team-max size-2" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="2" style="left: 200px;"><img src="./figure_red_large.png"></div>
+            <div class="figure team-max size-2" data-outside="true" data-x="0" data-y="0" data-team="max" data-size="2" style="left: 200px;"><img src="./figure_red_large.png"></div>
+            <div class="figure team-min size-0" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="0" style="left: 0px;">  <img src="./figure_black_small.png"></div>
+            <div class="figure team-min size-0" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="0" style="left: 0px;"> <img src="./figure_black_small.png"></div>
+            <div class="figure team-min size-1" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="1" style="left: 100px;"> <img src="./figure_black_medium.png"></div>
+            <div class="figure team-min size-1" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="1" style="left: 100px;"><img src="./figure_black_medium.png"></div>
+            <div class="figure team-min size-2" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="2" style="left: 200px;"><img src="./figure_black_large.png"></div>
+            <div class="figure team-min size-2" data-outside="true" data-x="0" data-y="0" data-team="min" data-size="2" style="left: 200px;"><img src="./figure_black_large.png"></div>
             
+            <div class="selection" data-x="0" data-y="0" style="left: 0px; top: 0px;"></div>
+            <div class="selection" data-x="1" data-y="0" style="left: 100px; top: 0px;"></div>
+            <div class="selection" data-x="2" data-y="0" style="left: 200px; top: 0px;"></div>
+            <div class="selection" data-x="0" data-y="1" style="left: 0px; top: 100px;"></div>
+            <div class="selection" data-x="1" data-y="1" style="left: 100px; top: 100px;"></div>
+            <div class="selection" data-x="2" data-y="1" style="left: 200px; top: 100px;"></div>
+            <div class="selection" data-x="0" data-y="2" style="left: 0px; top: 200px;"></div>
+            <div class="selection" data-x="1" data-y="2" style="left: 100px; top: 200px;"></div>
+            <div class="selection" data-x="2" data-y="2" style="left: 200px; top: 200px;"></div>
+        </div>
+
+        <div id="win-screen">
+            <img src="./figure_red_large.png" id="red-wins">
+            <img src="./figure_black_large.png" id="black-wins">
+            <h2>Has won the game.</h2>
         </div>
     </div>
-    
 
-    <p>Debugging of game.js in chrome.</p>
+    <div id="game-options">
+
+        <h2>Game settings</h2>
+        <p>After restart, the game will have the following settings.</p>
+
+        <div id="team-select">
+            <div id="team-max" data-cpu="true">
+                <p><span style="color: #a40f0f;">Red</span> player is:</p>
+                <img src="./figure_red_small.png">
+                <p id="team-max-label">CPU</p>
+            </div>
+            <div id="team-min" data-cpu="false">
+                <p><span style="color: #333333;">Black</span> player is:</p>
+                <img src="./figure_black_small.png">
+                <p id="team-max-label">Human</p>
+            </div>
+        </div>
+
+        <!-- <p>Maximum number of steps to be simulated by the CPU:</p>
+        <input type="number" name="cpu-depth" min="1" max="20">
+
+        <p>Maximum number of steps to be simulated by the CPU at start:</p>
+        <input type="number" name="cpu-depth-start" min="1" max="20"> -->
+
+
+        <button id="restart">Restart the game</button>
+    </div>
+
+    <article id="project">
+        <p>TODO</p>
+    </article>
+    <article id="about">
+        <p>TODO</p>
+    </article>
+
 </body>
 
 <script src="./game.js">

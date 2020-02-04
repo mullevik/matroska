@@ -688,10 +688,10 @@ class InterfaceError extends Error {
 
 class TheGame {
 
-    constructor() {
+    constructor(maxPlayer, minPlayer) {
         this.historyOfGameStates = [];
-        this.maxPlayer = new Player(0, false, true);
-        this.minPlayer = new Player(1, true, false);
+        this.maxPlayer = maxPlayer;
+        this.minPlayer = minPlayer;
         this.gameState = new GameState(
             Board.createStartingBoard(this.maxPlayer, this.minPlayer),
             this.maxPlayer,
@@ -731,6 +731,7 @@ class TheGame {
                 domFigure.dataset.y = "" + destination.y;
                 domFigure.style.top = "" + (destination.y * 100) + "px";
                 domFigure.style.left = "" + (destination.x * 100) + "px";
+                domFigure.style.zIndex = "" + ((destination.y * 10) + matroska.size);
             }
         } else {
             const figures = document.querySelectorAll(
@@ -747,6 +748,7 @@ class TheGame {
             domFigure.dataset.y = "" + destination.y;
             domFigure.style.top = "" + (destination.y * 100) + "px";
             domFigure.style.left = "" + (destination.x * 100) + "px";
+            domFigure.style.zIndex = "" + ((destination.y * 10) + matroska.size);
         }
     }
 
@@ -764,9 +766,15 @@ class TheGame {
     }
 
     doPostTurn() {
-        if (! this.gameState.playerOnTurn.isHuman) {
-            // CPU's turn to play
-            this.cpuTurn();
+        const winner = this.gameState.board.getWinner(this.maxPlayer, this.minPlayer);
+        if (winner === null) {
+            // the game is over
+            if (! this.gameState.playerOnTurn.isHuman) {
+                // CPU's turn to play
+                this.cpuTurn();
+            }
+        } else {
+            showWinScreen(winner);
         }
     }
 
@@ -794,17 +802,16 @@ class TheGame {
         const destinations = this.gameState.board.getPossiblePlacementDestinations(matroska);
 
         for (const position of destinations) {
-            const tiles = document.querySelectorAll(
-                `[data-x='${position.x}'][data-y='${position.y}'].tile`);
+            const selections = document.querySelectorAll(
+                `[data-x='${position.x}'][data-y='${position.y}'].selection`);
 
-            if (tiles.length != 1) {
+            if (selections.length != 1) {
                 throw new InterfaceError(`Not exactly one tile at position ${position}`);
             }
-            const domTile = tiles[0];
-
-            domTile.classList.add("selectable");
-            domTile.removeEventListener("click", onTileClick);
-            domTile.addEventListener("click", onTileClick, false);
+            const domSelection = selections[0];
+            domSelection.classList.add("selectable");
+            domSelection.removeEventListener("click", onSelectionClick);
+            domSelection.addEventListener("click", onSelectionClick, false);
         }
 
     }
@@ -825,9 +832,9 @@ class TheGame {
             throw new InterfaceError("No lastSelected matroska found");
         }
 
-        for (const domTile of document.getElementsByClassName("tile")) {
-            domTile.classList.remove("selectable");
-            domTile.removeEventListener("click", onTileClick);
+        for (const domSelection of document.getElementsByClassName("selection")) {
+            domSelection.classList.remove("selectable");
+            domSelection.removeEventListener("click", onSelectionClick);
         }
     }
 }
@@ -837,11 +844,78 @@ class TheGame {
 //  VISUALS
 //
 
-const THE_GAME = new TheGame();
+let THE_GAME = new TheGame(
+    new Player(0, false, true),
+    new Player(1, true, false)
+);
+
+function resetFigurePositioning() {
+    const figures = document.getElementsByClassName("figure");
+
+    for (const figure of figures) {
+        figure.style.zIndex = figure.dataset.size;
+        figure.dataset.outside = "true";
+    }
+
+    figures[ 0].style.left = "0px";
+    figures[ 1].style.left = "0px";
+    figures[ 2].style.left = "100px";
+    figures[ 3].style.left = "100px";
+    figures[ 4].style.left = "200px";
+    figures[ 5].style.left = "200px";
+    figures[ 6].style.left = "0px";
+    figures[ 7].style.left = "0px";
+    figures[ 8].style.left = "100px";
+    figures[ 9].style.left = "100px";
+    figures[10].style.left = "200px";
+    figures[11].style.left = "200px";
+    figures[ 0].style.top = "-150px";
+    figures[ 1].style.top = "-120px";
+    figures[ 2].style.top = "-150px";
+    figures[ 3].style.top = "-120px";
+    figures[ 4].style.top = "-150px";
+    figures[ 5].style.top = "-120px";
+    figures[ 6].style.top = "350px";
+    figures[ 7].style.top = "380px";
+    figures[ 8].style.top = "350px";
+    figures[ 9].style.top = "380px";
+    figures[10].style.top = "350px";
+    figures[11].style.top = "380px";
+}
+
+/**Shows the win screen element
+ * @param {Player} winner - the Player who won*/
+function showWinScreen(winner) {
+    const domWinScreen = document.getElementById("win-screen");
+
+    if (winner.isMaximizing) {
+        document.getElementById("red-wins").style.display = "block";
+        document.getElementById("black-wins").style.display = "none";
+    } else {
+        document.getElementById("red-wins").style.display = "none";
+        document.getElementById("black-wins").style.display = "block";
+    }
+    domWinScreen.style.zIndex = "1000";
+    domWinScreen.style.opacity = "1";
+}
+
+/**Hides the win screen element*/
+function hideWinScreen() {
+    const domWinScreen = document.getElementById("win-screen");
+    domWinScreen.style.opacity = "0";
+    setTimeout(() => {
+        domWinScreen.style.zIndex = "-1";
+    }, 500);
+}
 
 function onMatroskaClick(e) {
     e = e || window.event;
-    const domTarget = e.target || e.srcElement;
+    let domTarget = e.target || e.srcElement;
+
+    // get the figure div element
+    while (! domTarget.classList.contains("figure")) {
+        domTarget = domTarget.parentElement;
+    }
     
     const isOutside = (domTarget.dataset.outside == "true");
     const x = parseInt(domTarget.dataset.x);
@@ -867,7 +941,7 @@ function onMatroskaClick(e) {
     THE_GAME.selectMatroska(matroska);
 }
 
-function onTileClick(e) {
+function onSelectionClick(e) {
     e = e || window.event;
     const domTarget = e.target || e.srcElement;
     const x = parseInt(domTarget.dataset.x);
@@ -878,12 +952,39 @@ function onTileClick(e) {
     THE_GAME.selectDestination(position);
 }
 
+function onGameRestartClick(e) {
+    resetFigurePositioning();
+    hideWinScreen();
+
+    const domMax = document.getElementById("team-max");
+    let maxPlayer = null;
+    if (domMax.dataset.cpu == "true") {
+        maxPlayer = new Player(0, false, true);
+    } else {
+        maxPlayer = new Player(0, true, true);
+    }
+
+    setTimeout(() => {
+        const domMin = document.getElementById("team-min");
+        let minPlayer = null;
+        if (domMin.dataset.cpu == "true") {
+            minPlayer = new Player(1, false, false);
+        } else {
+            minPlayer = new Player(1, true, false);
+        }
+    
+        THE_GAME = new TheGame(maxPlayer, minPlayer);
+    }, 500);
+}
+
 const figures = document.getElementsByClassName("figure");
 
 for (const domMatroska of figures) {
     domMatroska.addEventListener("click", onMatroskaClick, false);
 }
 
+const restartButton = document.getElementById("restart");
+restartButton.addEventListener("click", onGameRestartClick, false);
 
 
 
