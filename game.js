@@ -19,6 +19,17 @@ class AbstractMethod extends Error {
     }
 }
 
+/**Shuffles array in-place using the Fisher-Yates algorithm
+ * @returns {undefined} nothing, as the array is shuffled in-place */
+function shuffleArrayInPlace(array) {
+    let r, x, i;
+    for (i = array.length - 1; i > 0; i --) {
+        r = Math.floor(Math.random() * (i + 1));
+        x = array[i];
+        array[i] = array[r];
+        array[r] = x;
+    }
+}
 
 class Player {
     constructor(playerId, isHuman, isMaximizing) {
@@ -539,6 +550,8 @@ class GameState {
             }
         }
 
+        // do random shuffle so the order of action is not the same every time
+        shuffleArrayInPlace(actions);
         return actions;
     }
 
@@ -560,10 +573,10 @@ class GameState {
         if (this.isTerminal()) {
             if (this.winner == this.maxPlayer) {
                 // maxPalyer wins
-                return Infinity;
+                return 1000;
             } else {
                 // minPlayer wins
-                return - Infinity;
+                return - 1000;
             }
         } else {
             return Heuristics.calculate(this.board);
@@ -771,7 +784,7 @@ class TheGame {
             // the game is over
             if (! this.gameState.playerOnTurn.isHuman) {
                 // CPU's turn to play
-                this.cpuTurn();
+                setTimeout(() => {this.cpuTurn();}, 300);
             }
         } else {
             showWinScreen(winner);
