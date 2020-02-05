@@ -31,6 +31,9 @@ function shuffleArrayInPlace(array) {
     }
 }
 
+const WINNER_UTILITY_VALUE = 5000;
+const IMPOSSIBLE_HEURISTIC_THRESHOLD = 1000;
+
 class Player {
     constructor(playerId, isHuman, isMaximizing) {
         this.playerId = playerId;
@@ -470,12 +473,42 @@ class MoveAction extends AbstractAction {
         const oldBoard = gameState.board;
         const newBoard = oldBoard.copy();
         newBoard.removeMatroska(this.sourceMatroska);
+
+        if (oldBoard.getWinner(gameState.maxPlayer, gameState.minPlayer) === null 
+            && newBoard.getWinner(gameState.maxPlayer, gameState.minPlayer) != null) {
+            // in between the placements of figure, the other player has won
+            const playerForNextTurn = gameState.getPlayerForNextTurn();
+            newBoard.addMatroska(new Matroska(
+                this.sourceMatroska.owner,this.sourceMatroska.size, null));    
+            return new GameState(
+                newBoard, gameState.maxPlayer, gameState.minPlayer, playerForNextTurn);
+        }
+
         newBoard.addMatroska(new Matroska(
             this.sourceMatroska.owner,this.sourceMatroska.size, this.destination));
 
         const playerForNextTurn = gameState.getPlayerForNextTurn();
         return new GameState(
             newBoard, gameState.maxPlayer, gameState.minPlayer, playerForNextTurn);
+    }
+
+    equals(other) {
+        if (! (other instanceof MoveAction)) {
+            return false;
+        }
+
+        if (other.destination === null) {
+            if (this.destination === null) {
+                return true;
+            }
+            return false;
+        } else {
+            if (other.destination.equals(this.destination) 
+            && other.sourceMatroska.equals(this.sourceMatroska)) {
+                return true;
+            }
+            return false;
+        }
     }
 }
 
@@ -508,6 +541,18 @@ class Heuristics {
         const all = [good, great, awesome];
 
         let utility = 0;
+
+        // for (const row of board.maxPlayerOutsideFigures) {
+        //     for (const matroska of row) {
+        //         utility += 1;
+        //     }
+        // }
+
+        // for (const row of board.minPlayerOutsideFigures) {
+        //     for (const matroska of row) {
+        //         utility -= 1;
+        //     }
+        // }
 
         for (const object of all) {
             for (const position of object.positions) {
@@ -573,10 +618,10 @@ class GameState {
         if (this.isTerminal()) {
             if (this.winner == this.maxPlayer) {
                 // maxPalyer wins
-                return 1000;
+                return WINNER_UTILITY_VALUE;
             } else {
                 // minPlayer wins
-                return - 1000;
+                return - WINNER_UTILITY_VALUE;
             }
         } else {
             return Heuristics.calculate(this.board);
@@ -624,6 +669,7 @@ class MiniMaxOutcome {
         this.noTerminalStates = 0;
         this.noDepthCutoffStates = 0;
         this.noAllGameNodesSearched = 0;
+        this.noKillerMovesSet = 0;
     }
 
     setBestAction(action) {
@@ -633,7 +679,43 @@ class MiniMaxOutcome {
 
 }
 
-function alphaBeta(gameState, depth, alpha, beta, outcome, selectAction) {
+class KillerMoves {
+
+    /**Keeps two killer moves in memory. */
+    constructor() {
+        this.firstMove = null;
+        this.secondMove = null;
+    }
+
+    /**@param {MoveAction} action - an action which caused a cutoff and is considered
+     * a killer move
+     * @returns true if this action was not already in killer moves*/
+    setKillerMove(action) {
+        if (action.equals(this.firstMove) || action.equals(this.secondMove)) {
+            return false;
+        } else {
+            this.secondMove = this.firstMove;
+            this.firstMove = action;
+            return true;
+        }
+    }
+
+    /**@returns {Array of MoveAction} array of actions which has up to 2 items */
+    getKillerMoves() {
+        const actions = [];
+        if (this.firstMove !== null) {
+            actions.push(this.firstMove);
+        }
+
+        if (this.secondMove !== null) {
+            actions.push(this.secondMove);
+        }
+        return actions;
+    }
+
+}
+
+function alphaBeta(gameState, depth, alpha, beta, outcome, selectAction, killerMoves) {
     outcome.noAllGameNodesSearched += 1;
 
     if (depth == 0) {
@@ -651,10 +733,23 @@ function alphaBeta(gameState, depth, alpha, beta, outcome, selectAction) {
 
     if (gameState.getPlayerOnTurn().isMaximizing) {
         let value = - Infinity;
-        for (const action of gameState.getPossibleActions()) {
-            const nextGameState = action.applyAction(gameState);
 
-            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome, false);
+        const possibleActions = killerMoves[depth].getKillerMoves()
+            .concat(gameState.getPossibleActions());
+        for (const action of possibleActions) {
+            let nextGameState;
+            try {
+                nextGameState = action.applyAction(gameState);
+            } catch (error) {
+                continue;
+            }
+
+            let valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome, false, killerMoves);
+            
+            if (valueOfChild > IMPOSSIBLE_HEURISTIC_THRESHOLD) {
+                valueOfChild = valueOfChild - 1;
+            }
+            
             if (valueOfChild > value) {
                 value = valueOfChild;
                 if (selectAction) {
@@ -664,6 +759,9 @@ function alphaBeta(gameState, depth, alpha, beta, outcome, selectAction) {
             alpha = Math.max(alpha, value);
             if (alpha >= beta) {
                 // cutoff the rest of the branches
+                if (killerMoves[depth].setKillerMove(action)) {
+                    outcome.noKillerMovesSet += 1;
+                }
                 outcome.noAlphaBetaPrunes += 1;
                 break;
             }
@@ -671,10 +769,21 @@ function alphaBeta(gameState, depth, alpha, beta, outcome, selectAction) {
         return value;
     } else {
         let value = Infinity;
-        for (const action of gameState.getPossibleActions()) {
-            const nextGameState = action.applyAction(gameState);
+        const possibleActions = killerMoves[depth].getKillerMoves()
+            .concat(gameState.getPossibleActions());
+        for (const action of possibleActions) {
+            let nextGameState;
+            try {
+                nextGameState = action.applyAction(gameState);
+            } catch (error) {
+                continue;
+            }
+            let valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome, false, killerMoves);
+            
+            if (valueOfChild < (- IMPOSSIBLE_HEURISTIC_THRESHOLD)) {
+                valueOfChild = valueOfChild + 1;
+            }
 
-            const valueOfChild = alphaBeta(nextGameState, depth - 1, alpha, beta, outcome, false);
             if (valueOfChild < value) {
                 value = valueOfChild;
                 if (selectAction) {
@@ -684,6 +793,9 @@ function alphaBeta(gameState, depth, alpha, beta, outcome, selectAction) {
             beta = Math.min(beta, value);
             if (alpha >= beta) {
                 // cutoff the rest of the branches
+                if (killerMoves[depth].setKillerMove(action)) {
+                    outcome.noKillerMovesSet += 1;
+                }
                 outcome.noAlphaBetaPrunes += 1;
                 break;
             }
@@ -701,7 +813,7 @@ class InterfaceError extends Error {
 
 class TheGame {
 
-    constructor(maxPlayer, minPlayer) {
+    constructor(maxPlayer, minPlayer, cpuDepthMax, cpuDepthMin) {
         this.historyOfGameStates = [];
         this.maxPlayer = maxPlayer;
         this.minPlayer = minPlayer;
@@ -714,7 +826,10 @@ class TheGame {
 
         this.lastSelectedMatroska = null;
         this.lastSelectedDestination = null;
-        this.cpuDepth = 2;
+        this.cpuDepthMax = cpuDepthMax;
+        this.cpuDepthMin = cpuDepthMin;
+
+        console.log(this);
 
         this.doPostTurn();
     }
@@ -779,6 +894,7 @@ class TheGame {
     }
 
     doPostTurn() {
+        console.log(this.gameState.print());
         const winner = this.gameState.board.getWinner(this.maxPlayer, this.minPlayer);
         if (winner === null) {
             // the game is over
@@ -794,8 +910,32 @@ class TheGame {
     cpuTurn() {
         const outcome = new MiniMaxOutcome();
 
-        const searchDepth = this.cpuDepth + this.historyOfGameStates.length;
-        const value = alphaBeta(this.gameState, this.cpuDepth, -Infinity, Infinity, outcome, true);
+        let currentSearchDepth;
+
+        if (this.gameState.playerOnTurn.isMaximizing) {
+            currentSearchDepth = this.cpuDepthMax;
+        } else {
+            currentSearchDepth = this.cpuDepthMin;
+        }
+
+        if (this.historyOfGameStates.length < 2) {
+            currentSearchDepth = 3;
+        }
+
+        const killerMoves = [];
+        for (let i = 0; i < currentSearchDepth + 1; i ++) {
+            killerMoves.push(new KillerMoves());
+        }
+
+        const value = alphaBeta(
+            this.gameState,
+            currentSearchDepth,
+            -Infinity,
+            Infinity,
+            outcome,
+            true,
+            killerMoves
+        );
         console.log(`Game value for this action: ${value}`);
         console.log(outcome);
 
@@ -859,7 +999,8 @@ class TheGame {
 
 let THE_GAME = new TheGame(
     new Player(0, false, true),
-    new Player(1, true, false)
+    new Player(1, true, false),
+    5, 5
 );
 
 function resetFigurePositioning() {
@@ -968,16 +1109,16 @@ function onSelectionClick(e) {
 function onGameRestartClick(e) {
     resetFigurePositioning();
     hideWinScreen();
+    
+    setTimeout(() => {    
+        const domMax = document.getElementById("team-max");
+        let maxPlayer = null;
+        if (domMax.dataset.cpu == "true") {
+            maxPlayer = new Player(0, false, true);
+        } else {
+            maxPlayer = new Player(0, true, true);
+        }
 
-    const domMax = document.getElementById("team-max");
-    let maxPlayer = null;
-    if (domMax.dataset.cpu == "true") {
-        maxPlayer = new Player(0, false, true);
-    } else {
-        maxPlayer = new Player(0, true, true);
-    }
-
-    setTimeout(() => {
         const domMin = document.getElementById("team-min");
         let minPlayer = null;
         if (domMin.dataset.cpu == "true") {
@@ -986,7 +1127,33 @@ function onGameRestartClick(e) {
             minPlayer = new Player(1, true, false);
         }
     
-        THE_GAME = new TheGame(maxPlayer, minPlayer);
+        const domDifficultyForMax = document.getElementById("difficulty-for-max");
+
+        const difficultyForMax = domDifficultyForMax.options[
+            domDifficultyForMax.selectedIndex].value;
+        let searchDepthForMax = 1;
+        if (difficultyForMax == "easy") {
+            searchDepthForMax = 1;
+        } else if (difficultyForMax == "medium") {
+            searchDepthForMax = 2;
+        } else if (difficultyForMax == "hard") {
+            searchDepthForMax = 6;
+        }
+
+        const domDifficultyForMin = document.getElementById("difficulty-for-min");
+
+        const difficultyForMin = domDifficultyForMax.options[
+            domDifficultyForMin.selectedIndex].value;
+        let searchDepthForMin = 1;
+        if (difficultyForMin == "easy") {
+            searchDepthForMin = 1;
+        } else if (difficultyForMin == "medium") {
+            searchDepthForMin = 2;
+        } else if (difficultyForMin == "hard") {
+            searchDepthForMin = 6;
+        }
+        
+        THE_GAME = new TheGame(maxPlayer, minPlayer, searchDepthForMax, searchDepthForMin);
     }, 500);
 }
 
@@ -1243,7 +1410,8 @@ function testMiniMax() {
     console.log(s5.board.toString());
     
     const o2 = new MiniMaxOutcome();
-    alphaBeta(s5, 1, -Infinity, Infinity, o2, true);
+    const killerMoves = [new KillerMoves(), new KillerMoves()];
+    alphaBeta(s5, 1, -Infinity, Infinity, o2, true, killerMoves);
     console.log(o2);
     a2 = o2.bestPossibleAction;
     assertEqualsWithEquals(a2.destination, new Position(2, 1));
