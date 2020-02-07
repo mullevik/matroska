@@ -1,7 +1,9 @@
 # Matroska Game
 A personal AI mini-project solving extensive-form game using the MiniMax algorithm with alpha-beta pruning.
 
-![](./figure_red_large.png)
+<p align="center">
+  <img src="./banner.png" alt="Matroska Game"/>
+</p>
 
 ### Description
 This project uses javascript language to implement a simple AI player for simple matroska game for children.
