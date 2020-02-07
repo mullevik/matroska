@@ -19,12 +19,33 @@ h2 {
     color: #555555;
 }
 
+h3 {
+    font: 1.8em Georgia, serif;
+    color: #555555;
+}
+
+h4 {
+    font: 1.4em Georgia, serif;
+    color: #333333;
+}
+
 p {
     font: 1em Georgia, serif;
     color: #676767;
+    text-align: justify;
 }
 
+ul {
+    font: 1em Georgia, serif;
+    color: #676767;
+    text-align: justify;
+}
 
+li {
+    font: 1em Georgia, serif;
+    color: #676767;
+    text-align: justify;
+}
 
 div#game {
     position: relative;
@@ -50,7 +71,7 @@ div#win-screen {
     top: 0;
     background-color: rgba(255, 255, 255, 0.8);
     opacity: 0;
-    transition: opacity 0.4s ease-in;
+    transition: opacity 0.3s ease-in;
     z-index: -1;
 }
 
@@ -94,7 +115,7 @@ div#win-screen {
     position: absolute;
     top: 0px;
     left: 0px;
-    transition: top 0.4s ease-out, left 0.4s ease-out;
+    transition: top 0.3s ease-out, left 0.3s ease-out;
     background-image: none;
     cursor: pointer;
 }
@@ -138,12 +159,18 @@ div#win-screen {
 div#game-options {
     grid-area: game-options;
     text-align: center;
+    align-self: center;
+}
+
+div#game-options p {
+    text-align: center;
 }
 
 div#team-select {
     display: grid;
     grid-template-areas: 'red black';
     column-gap: 40px;
+    margin-bottom: 2em;
     /* justify-items: center; */
 }
 
@@ -168,7 +195,7 @@ div#team-min {
 
 button#restart {
     font: 2em Georgia, serif;
-    margin-top: 1em;
+    margin-top: 0em;
     color: white;
     padding: 5px 10px;
     background-color: #333333;
@@ -181,6 +208,15 @@ button#restart:hover {
     color: #333333;
 }
 
+select {
+    font: 1em Georgia, serif;
+    margin-top: 0em;
+    color: white;
+    padding: 1px 2px;
+    background-color: #333333;
+    border-color: #333333;
+    cursor: pointer;
+}
 
 
 
@@ -198,6 +234,10 @@ header h1 {
 
 header p {
     text-align: center;
+}
+
+article {
+    padding: 2em 3em 2em 3em;
 }
 
 article#project {

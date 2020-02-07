@@ -518,6 +518,39 @@ class Heuristics {
         return Heuristics.simpleHeuristic(board);
     }
 
+
+    /**@param {Board} board
+     * @param {Matroska} matroska
+     * @returns {number} a number of figures right next to this `matroska` */
+    static numberOfAdjacentTeamFigures(board, matroska) {
+        const owner = matroska.owner;
+        const position = matroska.position;
+
+        const adjacentPositions = [
+            new Position(position.x, position.y - 1),
+            new Position(position.x, position.y + 1),
+            new Position(position.x + 1, position.y),
+            new Position(position.x - 1, position.y),
+            new Position(position.x + 1, position.y + 1),
+            new Position(position.x + 1, position.y - 1),
+            new Position(position.x - 1, position.y + 1),
+            new Position(position.x - 1, position.y - 1)
+        ];
+
+        let numberOfAdjacents = 0;
+
+        for (const adjacentPosition of adjacentPositions) {
+            if (board.contains(adjacentPosition)) {
+                const top = board.topAt(adjacentPosition);
+                if (top != null && top.owner.equals(owner)) {
+                    numberOfAdjacents += 1;
+                }
+            }
+        }
+
+        return numberOfAdjacents;
+    }
+
     /**Adds some utility for each top-matroska depending on the
      * strategic value of a position*/
     static simpleHeuristic(board) {
@@ -542,26 +575,17 @@ class Heuristics {
 
         let utility = 0;
 
-        // for (const row of board.maxPlayerOutsideFigures) {
-        //     for (const matroska of row) {
-        //         utility += 1;
-        //     }
-        // }
-
-        // for (const row of board.minPlayerOutsideFigures) {
-        //     for (const matroska of row) {
-        //         utility -= 1;
-        //     }
-        // }
-
         for (const object of all) {
             for (const position of object.positions) {
                 const top = board.topAt(position);
                 if (top !== null) {
+                    const adjacents = this.numberOfAdjacentTeamFigures(board, top);
                     if (top.owner.isMaximizing) {
                         utility += object.value;
+                        utility += adjacents;
                     } else {
                         utility -= object.value;
+                        utility -= adjacents;
                     }
                 }
             }
@@ -918,15 +942,16 @@ class TheGame {
             currentSearchDepth = this.cpuDepthMin;
         }
 
-        if (this.historyOfGameStates.length < 2) {
-            currentSearchDepth = 3;
-        }
+        const moveNumber = this.historyOfGameStates.length;
 
+        currentSearchDepth = Math.min(currentSearchDepth, moveNumber + 4);
+        
         const killerMoves = [];
         for (let i = 0; i < currentSearchDepth + 1; i ++) {
             killerMoves.push(new KillerMoves());
         }
 
+        console.log(`Starting Alpha-Beta with depth ${currentSearchDepth}`);
         const value = alphaBeta(
             this.gameState,
             currentSearchDepth,
@@ -951,6 +976,11 @@ class TheGame {
         }
 
         this.lastSelectedMatroska = matroska;
+
+        for (const domSelection of document.getElementsByClassName("selection")) {
+            domSelection.classList.remove("selectable");
+            domSelection.removeEventListener("click", onSelectionClick);
+        }
 
         const destinations = this.gameState.board.getPossiblePlacementDestinations(matroska);
 
@@ -1109,6 +1139,11 @@ function onSelectionClick(e) {
 function onGameRestartClick(e) {
     resetFigurePositioning();
     hideWinScreen();
+
+    for (const domSelection of document.getElementsByClassName("selection")) {
+        domSelection.classList.remove("selectable");
+        domSelection.removeEventListener("click", onSelectionClick);
+    }
     
     setTimeout(() => {    
         const domMax = document.getElementById("team-max");
@@ -1127,7 +1162,7 @@ function onGameRestartClick(e) {
             minPlayer = new Player(1, true, false);
         }
     
-        const domDifficultyForMax = document.getElementById("difficulty-for-max");
+        const domDifficultyForMax = document.getElementById("team-max-difficulty");
 
         const difficultyForMax = domDifficultyForMax.options[
             domDifficultyForMax.selectedIndex].value;
@@ -1137,10 +1172,10 @@ function onGameRestartClick(e) {
         } else if (difficultyForMax == "medium") {
             searchDepthForMax = 2;
         } else if (difficultyForMax == "hard") {
-            searchDepthForMax = 6;
+            searchDepthForMax = 8;
         }
 
-        const domDifficultyForMin = document.getElementById("difficulty-for-min");
+        const domDifficultyForMin = document.getElementById("team-min-difficulty");
 
         const difficultyForMin = domDifficultyForMax.options[
             domDifficultyForMin.selectedIndex].value;
@@ -1150,7 +1185,7 @@ function onGameRestartClick(e) {
         } else if (difficultyForMin == "medium") {
             searchDepthForMin = 2;
         } else if (difficultyForMin == "hard") {
-            searchDepthForMin = 6;
+            searchDepthForMin = 8;
         }
         
         THE_GAME = new TheGame(maxPlayer, minPlayer, searchDepthForMax, searchDepthForMin);
@@ -1171,13 +1206,21 @@ function onPlayerTypeClick(e) {
         domLabel.innerText = "Human";
         const domImage = document.getElementById(domTarget.id + "-image");
         domImage.src = "./human.png";
+        const domDifficulty = document.getElementById(domTarget.id + "-difficulty");
+        domDifficulty.style.opacity = "0";
     } else {
         domTarget.dataset.cpu = "true";
         const domLabel = document.getElementById(domTarget.id + "-label");
         domLabel.innerText = "CPU";
         const domImage = document.getElementById(domTarget.id + "-image");
         domImage.src = "./cpu.png";
+        const domDifficulty = document.getElementById(domTarget.id + "-difficulty");
+        domDifficulty.style.opacity = "1";
     }
+}
+
+function onDifficultySelectClick(e) {
+    e.stopPropagation();
 }
 
 const figures = document.getElementsByClassName("figure");
@@ -1193,6 +1236,10 @@ const teamSelectMax = document.getElementById("team-max");
 const teamSelectMin = document.getElementById("team-min");
 teamSelectMax.addEventListener("click", onPlayerTypeClick, false);
 teamSelectMin.addEventListener("click", onPlayerTypeClick, false);
+const teamSelectDifficultyMax = document.getElementById("team-max-difficulty");
+const teamSelectDifficultyMin = document.getElementById("team-min-difficulty");
+teamSelectDifficultyMax.addEventListener("click", onDifficultySelectClick, false);
+teamSelectDifficultyMin.addEventListener("click", onDifficultySelectClick, false);
 
 
 //
